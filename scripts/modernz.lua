@@ -3181,18 +3181,30 @@ local function osc_init()
     bind_buttons("title")
 
     -- Chapter title
-    ne = new_element("chapter_title", "button")
-    ne.content = function()
-        local chapter_index = state.chapter or -1
-        if user_opts.chapter_fmt == "no" or chapter_index < 0 then return "" end
-        local chapter_data = state.chapter_list[chapter_index + 1]
-        local chapter_title = mp.command_native({"escape-ass",
-            chapter_data and chapter_data.title ~= "" and chapter_data.title
-            or string.format("%s: %d/%d", locale.chapter, chapter_index + 1, #state.chapter_list)})
-        local t = string.format(user_opts.chapter_fmt, chapter_title)
-        return user_opts.truncate_title and truncate_title(t, state.chapter_title_max_w, osc_styles.chapter_title) or t
-    end
-    bind_buttons("chapter_title")
+        ne = new_element("chapter_title", "button")
+        ne.content = function()
+            local chapter_index = state.chapter or -1
+            if user_opts.chapter_fmt == "no" or chapter_index < 0 then return "" end
+            local chapter_data = state.chapter_list[chapter_index + 1]
+            local chapter_title = mp.command_native({"escape-ass",
+                chapter_data and chapter_data.title ~= "" and chapter_data.title
+                or string.format("%s: %d/%d", locale.chapter, chapter_index + 1, #state.chapter_list)})
+                
+            local time_pos = mp.get_property_number("time-pos")
+            local end_time = mp.get_property_number("duration")
+            if state.chapter_list and chapter_index + 1 < #state.chapter_list then
+                end_time = state.chapter_list[chapter_index + 2].time
+            end
+            
+            if time_pos and end_time then
+                local remaining = math.max(0, end_time - time_pos)
+                chapter_title = chapter_title .. string.format(" (-%02d:%02d)", math.floor(remaining / 60), math.floor(remaining % 60))
+            end
+
+            local t = string.format(user_opts.chapter_fmt, chapter_title)
+            return user_opts.truncate_title and truncate_title(t, state.chapter_title_max_w, osc_styles.chapter_title) or t
+        end
+        bind_buttons("chapter_title")
 
     -- playlist buttons
     -- prev
@@ -4494,6 +4506,41 @@ opt.read_options(user_opts, "modernz", function(changed)
     end
     request_init()
 end)
+
+-- ==========================================
+-- CUSTOM: Chapter Remaining Time Calculator
+-- ==========================================
+local function get_chapter_remaining_time()
+    local chapters = mp.get_property_native("chapter-list")
+    local current_chapter = mp.get_property_number("chapter")
+    local time_pos = mp.get_property_number("time-pos")
+    local duration = mp.get_property_number("duration")
+
+    -- Safety check: ensure file has chapters and time data
+    if not chapters or #chapters == 0 or current_chapter == nil or not time_pos then
+        return ""
+    end
+
+    local end_time = duration
+    
+    -- mpv properties are 0-indexed, but Lua tables are 1-indexed.
+    -- The next chapter index is current_chapter + 2
+    if current_chapter + 1 < #chapters then
+        end_time = chapters[current_chapter + 2].time
+    end
+
+    if not end_time then return "" end
+
+    local remaining = end_time - time_pos
+    if remaining < 0 then remaining = 0 end
+
+    local minutes = math.floor(remaining / 60)
+    local seconds = math.floor(remaining % 60)
+    
+    -- Formats the output to look like: " (-01:45)"
+    return string.format(" (-%02d:%02d)", minutes, seconds)
+end
+-- ==========================================
 
 load_locale_file()
 validate_user_opts()

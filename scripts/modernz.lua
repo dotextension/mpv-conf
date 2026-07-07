@@ -808,7 +808,8 @@ end
 -- width of the time codes element
 local function get_time_codes_width()
     local dur = state.duration or 0
-    local rt_sec = state.tc_left_rem and mp.get_property_number("playtime-remaining", 0) or mp.get_property_number("playback-time", 0)
+local rt_sec = mp.get_property_number("playtime-remaining", 0)
+    local pb_sec = mp.get_property_number("playback-time", 0)
 
     local function time_fmt(s)
         local has_h = (s >= 3600) or user_opts.time_format == "fixed"
@@ -816,8 +817,13 @@ local function get_time_codes_width()
         return base .. (state.tc_ms and ".888" or "")
     end
 
-    local prefix = state.tc_left_rem and (user_opts.unicodeminus and UNICODE_MINUS or "-") or ""
-    local w = estimate_text_width(prefix .. time_fmt(rt_sec) .. " / " .. time_fmt(dur), osc_styles.time)
+    local prefix = user_opts.unicodeminus and UNICODE_MINUS or "-"
+    local w
+    if state.tc_left_rem then
+        w = estimate_text_width(prefix .. time_fmt(rt_sec) .. " / " .. time_fmt(dur), osc_styles.time)
+    else
+        w = estimate_text_width(time_fmt(pb_sec) .. " / " .. prefix .. time_fmt(rt_sec), osc_styles.time)
+    end
     return w ~= 0 and w or 120 + (state.tc_ms and 40 or 0)
 end
 
@@ -3605,14 +3611,14 @@ local function osc_init()
         return nil
     end
 
-    -- Time codes display
+-- Time codes display
     ne = new_element("time_codes", "button")
     ne.content = function()
         local playback_time = mp.get_property_number("playback-time", 0)
         if not state.duration then return "--:--" end
 
-        local playtime_remaining = state.tc_left_rem and mp.get_property_number("playtime-remaining", 0) or playback_time
-        local prefix = state.tc_left_rem and (user_opts.unicodeminus and UNICODE_MINUS or "-") or ""
+        local playtime_remaining = mp.get_property_number("playtime-remaining", 0)
+        local prefix = user_opts.unicodeminus and UNICODE_MINUS or "-"
 
         -- call request_init() only when needed to update time code width
         if user_opts.time_format ~= "fixed" and playback_time then
@@ -3623,7 +3629,13 @@ local function osc_init()
             end
         end
 
-        return prefix .. format_time(playtime_remaining) .. " / " .. format_time(state.duration)
+        if state.tc_left_rem then
+            -- Clicked state
+            return prefix .. format_time(playtime_remaining) .. " / " .. format_time(state.duration)
+        else
+            -- Default state
+            return format_time(playback_time) .. " / " .. prefix .. format_time(playtime_remaining)
+        end
     end
     ne.eventresponder["mbtn_left_up"] = function()
         state.tc_left_rem = not state.tc_left_rem

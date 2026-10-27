@@ -2407,7 +2407,7 @@ layouts["default"] = function ()
 
     right_side_button("fullscreen", 550, user_opts.fullscreen_button)
     right_side_button("info", 650, user_opts.info_button)
-    right_side_button("ontop", 750, user_opts.ontop_button and not (window_controls_enabled() and user_opts.ontop_in_topbar and state.ontop))
+    right_side_button("frame_step", 750)
     right_side_button("screenshot", 850, user_opts.screenshot_button)
     right_side_button("anime4k_toggle", 950, user_opts.loop_button, osc_styles.speed, 42)
     right_side_button("shuffle", 1050, user_opts.shuffle_button)
@@ -3423,6 +3423,16 @@ local function osc_init()
         return state.ontop and locale.ontop_disable or locale.ontop
     end
     bind_buttons("ontop")
+
+    -- Frame Inspection
+    ne = new_element("frame_step", "button")
+    ne.softrepeat = true
+    ne.content = icons.jump.default[2]
+    ne.tooltipF = "Frame Inspection"
+    ne.eventresponder["mbtn_left_down"] = function () mp.commandv("frame-step") end
+    ne.eventresponder["mbtn_right_down"] = function () mp.commandv("frame-back-step") end
+    ne.eventresponder["wheel_up_press"] = function () mp.commandv("frame-step") end
+    ne.eventresponder["wheel_down_press"] = function () mp.commandv("frame-back-step") end
 
     --screenshot
     ne = new_element("screenshot", "button")

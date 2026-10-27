@@ -2409,7 +2409,7 @@ layouts["default"] = function ()
     right_side_button("info", 650, user_opts.info_button)
     right_side_button("ontop", 750, user_opts.ontop_button and not (window_controls_enabled() and user_opts.ontop_in_topbar and state.ontop))
     right_side_button("screenshot", 850, user_opts.screenshot_button)
-    right_side_button("file_loop", 950, user_opts.loop_button)
+    right_side_button("anime4k_toggle", 950, user_opts.loop_button, osc_styles.speed, 42)
     right_side_button("shuffle", 1050, user_opts.shuffle_button)
     right_side_button("speed", 1150, user_opts.speed_button, osc_styles.speed, 42)
     right_side_button("download", 1150, state.is_url and user_opts.download_button)
@@ -3430,11 +3430,19 @@ local function osc_init()
     ne.tooltipF = locale.screenshot
     bind_buttons("screenshot")
 
-    --file_loop
-    ne = new_element("file_loop", "button")
-    ne.content = function() return state.file_loop and icons.loop_on or icons.loop_off end
-    ne.tooltipF = function() return state.file_loop and locale.file_loop_enable or locale.file_loop_disable end
-    bind_buttons("file_loop")
+-- Anime4K Toggle
+    ne = new_element("anime4k_toggle", "button")
+    ne.content = function() return state.anime4k_on and "{\\1c&HFBD98F&}A4K" or "A4K" end
+    ne.tooltipF = function() return state.anime4k_on and "Anime4K (Mode A): ON" or "Anime4K: OFF" end
+    ne.eventresponder["mbtn_left_up"] = function()
+        if state.anime4k_on then
+            mp.commandv("change-list", "glsl-shaders", "clr", "")
+            mp.commandv("show-text", "GLSL shaders cleared")
+        else
+            mp.commandv("change-list", "glsl-shaders", "set", "~~/shaders/Anime4K_Clamp_Highlights.glsl;~~/shaders/Anime4K_Restore_CNN_VL.glsl;~~/shaders/Anime4K_Upscale_CNN_x2_VL.glsl;~~/shaders/Anime4K_AutoDownscalePre_x2.glsl;~~/shaders/Anime4K_AutoDownscalePre_x4.glsl;~~/shaders/Anime4K_Upscale_CNN_x2_M.glsl")
+            mp.commandv("show-text", "Anime4K: Mode A (HQ)")
+        end
+    end
 
     --shuffle
     ne = new_element("shuffle", "button")
@@ -4218,6 +4226,10 @@ mp.observe_property("user-data/mpv/console/open", "bool", function(_, val)
         osc_visible(false)
         wc_visible(false)
     end
+end)
+mp.observe_property("glsl-shaders", "string", function(_, val)
+    state.anime4k_on = (val ~= nil and val ~= "")
+    request_tick()
 end)
 mp.observe_property("display-fps", "number", set_tick_delay)
 observe_cached("demuxer-cache-state", request_tick)
